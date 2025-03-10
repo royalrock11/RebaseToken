@@ -146,14 +146,26 @@ contract RebaseToken is ERC20, Ownable, AccessControl {
      * @param _amount The amount of tokens to transfer
      * @return True if the transfer was successful, false otherwise
      */
+    // function transferFrom(address _sender, address _recipient, uint256 _amount) public override returns (bool) {
+    //     _mintAccruedInterest(msg.sender);
+    //     _mintAccruedInterest(_recipient);
+    //     if (_amount == type(uint256).max) {
+    //         _amount = balanceOf(msg.sender);
+    //     }
+    //     if (balanceOf(_recipient) == 0) {
+    //         s_userInterestRate[_recipient] = s_userInterestRate[msg.sender];
+    //     }
+    //     return super.transferFrom(_sender, _recipient, _amount);
+    // }
+
     function transferFrom(address _sender, address _recipient, uint256 _amount) public override returns (bool) {
-        _mintAccruedInterest(msg.sender);
+        _mintAccruedInterest(_sender); // Fix: Use _sender
         _mintAccruedInterest(_recipient);
         if (_amount == type(uint256).max) {
-            _amount = balanceOf(msg.sender);
+            _amount = balanceOf(_sender); // Fix: Use _sender
         }
         if (balanceOf(_recipient) == 0) {
-            s_userInterestRate[_recipient] = s_userInterestRate[msg.sender];
+            s_userInterestRate[_recipient] = s_userInterestRate[_sender]; // Fix: Use _sender
         }
         return super.transferFrom(_sender, _recipient, _amount);
     }

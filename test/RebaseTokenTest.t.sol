@@ -14,6 +14,7 @@ contract RebaseTokenTest is Test {
 
     address public owner = makeAddr("owner");
     address public user = makeAddr("user");
+    address public user2 = makeAddr("user2");
 
     function setUp() public {
         vm.startPrank(owner);
@@ -93,36 +94,75 @@ contract RebaseTokenTest is Test {
         assertGt(ethBalance, depositAmount);
     }
 
-    function testTransfer(uint256 amount, uint256 amountToSend) public {
+    function testTransferUserToAnother(uint256 amount, uint256 amountToSend) public {
         amount = bound(amount, 1e5 + 1e5, type(uint96).max);
         amountToSend = bound(amountToSend, 1e5, amount - 1e5);
 
-        // 1. deposit
         vm.deal(user, amount);
         vm.prank(user);
         vault.deposit{value: amount}();
 
-        address user2 = makeAddr("user2");
         uint256 userBalance = rebaseToken.balanceOf(user);
         uint256 user2Balance = rebaseToken.balanceOf(user2);
         assertEq(userBalance, amount);
         assertEq(user2Balance, 0);
 
-        // Owner reduces the interest rate
         vm.prank(owner);
         rebaseToken.setInterestRate(4e10);
 
-        // 2. transfer
         vm.prank(user);
         rebaseToken.transfer(user2, amountToSend);
         uint256 userBalanceAfterTransfer = rebaseToken.balanceOf(user);
         uint256 user2BalanceAfterTransfer = rebaseToken.balanceOf(user2);
         assertEq(userBalanceAfterTransfer, userBalance - amountToSend);
         assertEq(user2BalanceAfterTransfer, amountToSend);
-
-        // check user interest rate has been inherited(5e10 not 4e10)
         assertEq(rebaseToken.getUserInterestRate(user), 5e10);
         assertEq(rebaseToken.getUserInterestRate(user2), 5e10);
+    }
+
+    function testTransferingForMaxAmount(uint256 amount) public {
+        amount = bound(amount, 1e5, type(uint96).max);
+        vm.deal(user, amount);
+        vm.prank(user);
+        vault.deposit{value: amount}();
+        vm.warp(block.timestamp + 1 hours);
+
+        vm.prank(user);
+        rebaseToken.approve(user2, type(uint256).max);
+
+        vm.prank(user2);
+        rebaseToken.transferFrom(user, user2, type(uint256).max);
+
+        assertEq(rebaseToken.principleBalanceOf(user), 0, "User should have no tokens left");
+        assertGt(rebaseToken.balanceOf(user2), amount, "User2 should have received tokens with interest");
+    }
+
+    function testTransferFrom(uint256 amount, uint256 amountToSend) public {
+        amount = bound(amount, 1e5 + 1e5, type(uint96).max);
+        amountToSend = bound(amountToSend, 1e5, amount - 1e5);
+
+        vm.deal(user, amount);
+        vm.prank(user);
+        vault.deposit{value: amount}();
+        vm.warp(block.timestamp + 1 hours);
+
+        vm.prank(user);
+        rebaseToken.approve(user2, amountToSend);
+
+        // Get principal before transfer, but after interest is minted
+        vm.prank(user2);
+        rebaseToken.transferFrom(user, user2, 0); // Trigger interest minting without transferring
+        uint256 userPrincipalBefore = rebaseToken.principleBalanceOf(user);
+
+        vm.prank(user2);
+        rebaseToken.transferFrom(user, user2, amountToSend);
+
+        uint256 userPrincipalAfter = rebaseToken.principleBalanceOf(user);
+        assertEq(
+            userPrincipalAfter, userPrincipalBefore - amountToSend, "User principal should decrease by amount sent"
+        );
+        assertEq(rebaseToken.principleBalanceOf(user2), amountToSend, "User2 should receive exact amount");
+        assertEq(rebaseToken.getUserInterestRate(user2), 5e10, "User2 should inherit interest rate");
     }
 
     function testCannotSetInterestRate(uint256 newInterestRate) public {
@@ -166,7 +206,7 @@ contract RebaseTokenTest is Test {
         assertEq(rebaseToken.getInterestRate(), initialInterestRate);
     }
 
-   function testConstructor() public view {
+    function testConstructor() public view {
         assertEq(rebaseToken.name(), "Rebase Token");
         assertEq(rebaseToken.symbol(), "RBT");
     }
@@ -177,6 +217,4 @@ contract RebaseTokenTest is Test {
         rebaseToken.setInterestRate(newInterestRate);
         assertEq(rebaseToken.getInterestRate(), newInterestRate);
     }
-
-    
 }
