@@ -67,7 +67,8 @@ contract Vault is ReentrancyGuard {
      */
     function deposit() external payable {
         // 1. We need to use the amount of ETH the user has sent to mint to the tokens to the user
-        IRebaseToken(i_rebaseToken).mint(msg.sender, msg.value);
+        uint256 interestRate = i_rebaseToken.getInterestRate();
+        i_rebaseToken.mint(msg.sender, msg.value, interestRate);
         emit Deposit(msg.sender, msg.value);
     }
 
