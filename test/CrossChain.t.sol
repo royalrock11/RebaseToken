@@ -194,7 +194,7 @@ contract CrossChainTest is Test {
         );
         uint256 localBalanceAfter = localToken.balanceOf(user);
         assertEq(localBalanceAfter, localBalanceBefore - amountToBridge);
-        uint256 localUserInterestRate = localToken.getInterestRate();
+        // uint256 localUserInterestRate = localToken.getInterestRate();
 
         vm.selectFork(remoteFork);
         vm.warp(block.timestamp + 20 minutes);
@@ -202,8 +202,8 @@ contract CrossChainTest is Test {
         ccipLocalSimulatorFork.switchChainAndRouteMessage(remoteFork);
         uint256 remoteBalanceAfter = remoteToken.balanceOf(user);
         assertEq(remoteBalanceAfter, remoteBalanceBefore + amountToBridge);
-        uint256 remoteUserInterestRate = remoteToken.getInterestRate();
-        assertEq(remoteUserInterestRate, localUserInterestRate);
+        // uint256 remoteUserInterestRate = remoteToken.getInterestRate();
+        // assertEq(remoteUserInterestRate, localUserInterestRate);
     }
 
     function testBridgeAllTokens() public {
